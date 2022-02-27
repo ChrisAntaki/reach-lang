@@ -82,27 +82,31 @@ jobs:
         at: /tmp/workspace
     - and_restore_docker:
         deps: "stdlib runner rpc-server reach reach-cli devnet-eth devnet-cfx devnet-algo"
+    # Create the release on GitHub
+    - run: |
+        source ./VERSION
+        curl  -u $GITHUB_USERNAME:$GITHUB_TOKEN -H "Accept: application/vnd.github.v3+json"  -X POST https://api.github.com/repos/reach-sh/reach-lang/releases -d '{"tag_name": "${VERSION}"}'
     # Publish images
-    - run: |
-        docker login -u $DOCKER_LOGIN -p $DOCKER_PASSWORD
-        for IMG in stdlib runner rpc-server reach reach-cli devnet-algo devnet-eth devnet-cfx; do
-          ./scripts/docker-push.sh reachsh/${IMG}
-        done
-    # Publish stdlib
-    - run: |
-        sudo apt update -y
-        sudo apt install npm -y
-        cd js/stdlib
-        make refresh-js-stdlib
-        make bump-version-and-publish-js-stdlib
-    # Make the announcement
-    - run: |
-        set -a; source ./VERSION
-        export GIT_COMMIT_HASH=$CIRCLE_SHA1
-        sudo apt update -y; sudo apt install python3 python3-pip -y
-        pip3 install requests
-        cd scripts
-        python3 announcer.py
+#    - run: |
+#        docker login -u $DOCKER_LOGIN -p $DOCKER_PASSWORD
+#        for IMG in stdlib runner rpc-server reach reach-cli devnet-algo devnet-eth devnet-cfx; do
+#          ./scripts/docker-push.sh reachsh/${IMG}
+#        done
+#    # Publish stdlib
+#    - run: |
+#        sudo apt update -y
+#        sudo apt install npm -y
+#        cd js/stdlib
+#        make refresh-js-stdlib
+#        make bump-version-and-publish-js-stdlib
+#    # Make the announcement
+#    - run: |
+#        set -a; source ./VERSION
+#        export GIT_COMMIT_HASH=$CIRCLE_SHA1
+#        sudo apt update -y; sudo apt install python3 python3-pip -y
+#        pip3 install requests
+#        cd scripts
+#        python3 announcer.py
   "docs-render":
     executor: fake
     steps:
