@@ -344,7 +344,7 @@ workflows:
           - "browser-tests"
         filters:
           branches:
-            only: master
+            only: github_release
     - "browser-tests":
         requires:
           - "build-react-runner"
