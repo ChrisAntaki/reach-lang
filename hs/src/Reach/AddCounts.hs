@@ -91,16 +91,16 @@ instance AC DLStmt where
         _ -> do
           ac_visit $ de
           return $ DL_Let at x' de
-    DL_ArrayMap at ans x a i f -> do
+    DL_ArrayMap at ans xs as i f -> do
       -- XXX remove if ans not used
       f' <- ac f
-      ac_visit $ x
-      return $ DL_ArrayMap at ans x a i f'
-    DL_ArrayReduce at ans x z b a i f -> do
+      ac_visit $ xs
+      return $ DL_ArrayMap at ans xs as i f'
+    DL_ArrayReduce at ans xs z b as i f -> do
       -- XXX remove if ans not used
       f' <- ac f
-      ac_visit $ [x, z]
-      return $ DL_ArrayReduce at ans x z b a i f'
+      ac_visit $ xs ++ [z]
+      return $ DL_ArrayReduce at ans xs z b as i f'
     DL_Var at dv ->
       ac_getCount dv >>= \case
         Nothing -> skip at

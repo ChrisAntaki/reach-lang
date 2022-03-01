@@ -994,12 +994,14 @@ solCom = \case
     solIf <$> solArg ca <*> solPLTail t <*> solPLTail f
   DL_LocalSwitch at ov csm -> solSwitch solPLTail at ov csm
   DL_Only {} -> impossible $ "only in CT"
-  DL_ArrayMap _ ans x a i (DLBlock _ _ f r) -> do
-    addMemVars $ [ans, a]
-    let sz = arraySize x
+  DL_ArrayMap _ ans xs as i (DLBlock _ _ f r) -> do
+    addMemVars $ [ans] ++ as
+    let sz = case allEqual $ map arraySize xs of
+          Right s -> s
+          _ -> impossible "DL_ArrayMap: inconsistent array sizes"
     ans' <- solVar ans
-    x' <- solArg x
-    a' <- solVar a
+    xs' <- mapM solArg xs
+    as' <- mapM solVar as
     let i' = solRawVar i
     extendVarMap $ M.singleton i i'
     f' <- solPLTail f
@@ -1008,19 +1010,22 @@ solCom = \case
       vsep
         [ "for" <+> parens ("uint256 " <> i' <> " = 0" <> semi <+> i' <> " <" <+> (pretty sz) <> semi <+> i' <> "++")
             <> solBraces
-              (vsep
-                 [ a' <+> "=" <+> (solArrayRef x' i') <> semi
-                 , f'
+              (vsep $
+                 zipWith (\a x -> a <+> "=" <+> (solArrayRef x i') <> semi) as' xs'
+                 ++
+                 [ f'
                  , (solArrayRef ans' i') <+> "=" <+> r' <> semi
                  ])
         ]
-  DL_ArrayReduce _ ans x z b a i (DLBlock _ _ f r) -> do
-    addMemVars $ [ans, b, a]
-    let sz = arraySize x
+  DL_ArrayReduce _ ans xs z b as i (DLBlock _ _ f r) -> do
+    addMemVars $ [ans, b] ++ as
+    let sz = case allEqual $ map arraySize xs of
+          Right s -> s
+          _ -> impossible "DL_ArrayReduce: inconsistent array sizes"
     ans' <- solVar ans
-    x' <- solArg x
+    xs' <- mapM solArg xs
     z' <- solArg z
-    a' <- solVar a
+    as' <- mapM solVar as
     b' <- solVar b
     let i' = solRawVar i
     extendVarMap $ M.singleton i i'
@@ -1031,9 +1036,10 @@ solCom = \case
         [ b' <+> "=" <+> z' <> semi
         , "for" <+> parens ("uint256 " <> i' <> " = 0" <> semi <+> i' <> " <" <+> (pretty sz) <> semi <+> i' <> "++")
             <> solBraces
-              (vsep
-                 [ a' <+> "=" <+> (solArrayRef x' i') <> semi
-                 , f'
+              (vsep $
+                 zipWith (\a x -> a <+> "=" <+> (solArrayRef x i') <> semi) as' xs'
+                 ++
+                 [ f'
                  , b' <+> "=" <+> r' <> semi
                  ])
         , ans' <+> "=" <+> b' <> semi

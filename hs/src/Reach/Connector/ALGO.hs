@@ -1938,9 +1938,9 @@ cm km = \case
     when recordNew $
       addNewTok $ DLA_Var dv
     sallocVarLet (DLVarLet (Just vc) dv) sm (ce de) km
-  DL_ArrayMap at ansv aa lv iv (DLBlock _ _ body ra) -> do
+  DL_ArrayMap at ansv as xs iv (DLBlock _ _ body ra) -> do
     let anssz = typeSizeOf $ argTypeOf $ DLA_Var ansv
-    let (_, xlen) = argArrTypeLen aa
+    let xlen = arraysLength as
     let rt = argTypeOf ra
     check_concat_len anssz
     salloc_ (textyv ansv) $ \store_ans load_ans -> do
@@ -1948,24 +1948,36 @@ cm km = \case
       store_ans
       cfor xlen $ \load_idx -> do
         load_ans
-        doArrayRef at aa True $ Right load_idx
-        sallocLet lv (return ()) $
-          store_let iv True load_idx $ do
-            cp (ca ra >> ctobs rt) body
+        let arraysLoop xs' as' = case (xs', as') of
+              ([], []) -> do
+                cp (ca ra >> ctobs rt) body
+              (x:xsTail, a:asTail) -> do
+                doArrayRef at a True $ Right load_idx
+                sallocLet x (return ()) $
+                  store_let iv True load_idx $
+                  arraysLoop xsTail asTail
+              (_, _) -> impossible "DL_ArrayMap: inconsistent array sizes"
+        arraysLoop xs as
         op "concat"
         store_ans
       store_let ansv True load_ans km
-  DL_ArrayReduce at ansv aa za av lv iv (DLBlock _ _ body ra) -> do
-    let (_, xlen) = argArrTypeLen aa
+  DL_ArrayReduce at ansv as za av xs iv (DLBlock _ _ body ra) -> do
+    let xlen = arraysLength as
     salloc_ (textyv ansv) $ \store_ans load_ans -> do
       ca za
       store_ans
       store_let av True load_ans $ do
         cfor xlen $ \load_idx -> do
-          doArrayRef at aa True $ Right load_idx
-          sallocLet lv (return ()) $ do
-            store_let iv True load_idx $ do
-              cp (ca ra) body
+          let arraysLoop xs' as' = case (xs', as') of
+                ([], []) -> do
+                  cp (ca ra) body
+                (x:xsTail, a:asTail) -> do
+                  doArrayRef at a True $ Right load_idx
+                  sallocLet x (return ()) $ do
+                    store_let iv True load_idx $ do
+                      arraysLoop xsTail asTail
+                (_, _) -> impossible "DL_ArrayReduce: inconsistent array sizes"
+          arraysLoop xs as
           store_ans
         store_let ansv True load_ans km
   DL_Var _ dv ->
@@ -1999,6 +2011,10 @@ cm km = \case
   DL_Only {} ->
     impossible $ "only in CP"
   DL_LocalDo _ t -> cp km t
+  where
+    arraysLength as = case allEqual $ map snd $ map argArrTypeLen as of
+      Right len -> len
+      _ -> impossible "Inconsistent array sizes for map or reduce"
 
 cp :: App () -> DLTail -> App ()
 cp km = \case

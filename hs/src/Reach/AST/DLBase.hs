@@ -939,8 +939,8 @@ type SwitchCases a = M.Map SLVar (DLVar, Bool, a)
 data DLStmt
   = DL_Nop SrcLoc
   | DL_Let SrcLoc DLLetVar DLExpr
-  | DL_ArrayMap SrcLoc DLVar DLArg DLVar DLVar DLBlock
-  | DL_ArrayReduce SrcLoc DLVar DLArg DLArg DLVar DLVar DLVar DLBlock
+  | DL_ArrayMap SrcLoc DLVar [DLArg] [DLVar] DLVar DLBlock
+  | DL_ArrayReduce SrcLoc DLVar [DLArg] DLArg DLVar [DLVar] DLVar DLBlock
   | DL_Var SrcLoc DLVar
   | DL_Set SrcLoc DLVar DLArg
   | DL_LocalDo SrcLoc DLTail
@@ -969,8 +969,8 @@ instance Pretty DLStmt where
     DL_Nop _ -> mempty
     DL_Let _ DLV_Eff de -> pretty de <> semi
     DL_Let _ x de -> "const" <+> pretty x <+> "=" <+> pretty de <> semi
-    DL_ArrayMap _ ans x a i f -> prettyMap ans x a i f
-    DL_ArrayReduce _ ans x z b a i f -> prettyReduce ans x z b a i f
+    DL_ArrayMap _ ans xs as i f -> prettyMap ans xs as i f
+    DL_ArrayReduce _ ans xs z b as i f -> prettyReduce ans xs z b as i f
     DL_Var _at dv -> "let" <+> pretty dv <> semi
     DL_Set _at dv da -> pretty dv <+> "=" <+> pretty da <> semi
     DL_LocalDo _at k -> "do" <+> braces (pretty k) <> semi

@@ -259,14 +259,14 @@ kgq_m :: KCtxt -> DLStmt -> IO ()
 kgq_m ctxt = \case
   DL_Nop _ -> mempty
   DL_Let _ lv de -> kgq_e ctxt (lv2mdv lv) de
-  DL_ArrayMap _ ans x a i (DLBlock _ _ f r) ->
-    kgq_a_only ctxt a x
+  DL_ArrayMap _ ans xs as i (DLBlock _ _ f r) ->
+    zipWithM (kgq_a_only ctxt) as xs
       >> kgq_a_all ctxt (DLA_Var i)
       >> kgq_a_only ctxt ans r
       >> kgq_l ctxt f
-  DL_ArrayReduce _ ans x z b a i (DLBlock _ _ f r) ->
+  DL_ArrayReduce _ ans xs z b as i (DLBlock _ _ f r) ->
     kgq_a_only ctxt b z
-      >> kgq_a_only ctxt a x
+      >> zipWithM (kgq_a_only ctxt) as xs
       >> kgq_a_all ctxt (DLA_Var i)
       >> kgq_a_only ctxt ans r
       >> kgq_l ctxt f

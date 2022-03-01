@@ -599,12 +599,12 @@ instance Optimize DLStmt where
       optIf (DL_LocalDo at) DL_LocalIf at c t f
     DL_LocalSwitch at ov csm ->
       optSwitch (DL_LocalDo at) DT_Com DL_LocalSwitch at ov csm
-    DL_ArrayMap at ans x a i f -> do
-      s' <- DL_ArrayMap at ans <$> opt x <*> pure a <*> pure i <*> opt f
-      maybeUnroll s' x $ return s'
-    DL_ArrayReduce at ans x z b a i f -> do
-      s' <- DL_ArrayReduce at ans <$> opt x <*> opt z <*> (opt b) <*> (pure a) <*> pure i <*> opt f
-      maybeUnroll s' x $ return s'
+    DL_ArrayMap at ans xs as i f -> do
+      s' <- DL_ArrayMap at ans <$> opt xs <*> pure as <*> pure i <*> opt f
+      maybeUnroll s' xs $ return s'
+    DL_ArrayReduce at ans xs z b as i f -> do
+      s' <- DL_ArrayReduce at ans <$> opt xs <*> opt z <*> (opt b) <*> (pure as) <*> pure i <*> opt f
+      maybeUnroll s' xs $ return s'
     DL_MapReduce at mri ans x z b a f -> do
       DL_MapReduce at mri ans x <$> opt z <*> (pure b) <*> (pure a) <*> opt f
     DL_Only at ep l -> do
@@ -620,19 +620,23 @@ instance Optimize DLStmt where
         DT_Return _ -> return $ DL_Nop at
         t' -> return $ DL_LocalDo at t'
     where
-      maybeUnroll :: DLStmt -> DLArg -> App DLStmt -> App DLStmt
-      maybeUnroll s x def =
-        case argTypeOf x of
-          T_Array _ n ->
-            case n <= 1 of
-              True -> do
-                c <- asks eCounter
-                let at = srclocOf s
-                let t = DL_LocalDo at $ DT_Com s $ DT_Return at
-                UnrollWrapper _ t' <- liftIO $ unrollLoops $ UnrollWrapper c t
-                return t'
-              _ -> def
-          _ -> def
+      maybeUnroll :: DLStmt -> [DLArg] -> App DLStmt -> App DLStmt
+      maybeUnroll s xs def =
+        let arrayLengths = map (\x -> case argTypeOf x of
+                                 T_Array _ n -> Just n
+                                 _ -> Nothing)
+                           xs in
+          case allEqual arrayLengths of
+            Right (Just n) ->
+              case n <= 1 of
+                True -> do
+                  c <- asks eCounter
+                  let at = srclocOf s
+                  let t = DL_LocalDo at $ DT_Com s $ DT_Return at
+                  UnrollWrapper _ t' <- liftIO $ unrollLoops $ UnrollWrapper c t
+                  return t'
+                _ -> def
+            _ -> impossible "Inconsistent array sizes during unrolling."
   gcs = \case
     DL_Nop {} -> return ()
     DL_Let {} -> return ()
